@@ -2,7 +2,7 @@ module Test.Main where
 
 import Prelude
 
-import Data.Maybe (fromMaybe)
+import Data.Maybe (Maybe(..), fromMaybe)
 import Effect (Effect)
 import Effect.Aff (launchAff_)
 import Main (CellState(..), GameOfLife(..), countAliveNeighbours, createEmptyGrid, createFullGrid, fromAsciiArt, makeAliveAt, nextCellState, nextGeneration)
@@ -38,24 +38,30 @@ main = launchAff_ $ runSpec [consoleReporter] do
       it "all alive neighbours" do
         let grid = (createFullGrid 3)
         (countAliveNeighbours 1 1 grid) `shouldEqual` 8
+    describe "from Ascii Art" do
+      it "should convert string to GameOfLife" do
+        let gameOfLife = fromAsciiArt "xxx\n\
+                                      \xxx\n\
+                                      \xxx"
+        gameOfLife `shouldEqual` (Just (GameOfLife 3 (createFullGrid 3)))               
     describe "Validating generation with patterns" do
       it "should handle Still lifes pattern with block example" do
-        let gameOfLife = fromAsciiArt "oooo\
-                                      \oxxo\
-                                      \oxxo\
+        let gameOfLife = fromAsciiArt "oooo\n\
+                                      \oxxo\n\
+                                      \oxxo\n\
                                       \oooo"
         let nextGameOfLife = gameOfLife >>= \g ->  nextGeneration g
         nextGameOfLife `shouldEqual` nextGameOfLife
       it "should handle Oscillators pattern with blinker example" do
-        let gameOfLife = fromAsciiArt "ooooo\
-                                      \ooxoo\
-                                      \ooxoo\
-                                      \ooxoo\
+        let gameOfLife = fromAsciiArt "ooooo\n\
+                                      \ooxoo\n\
+                                      \ooxoo\n\
+                                      \ooxoo\n\
                                       \ooooo"
-        let expected = fromAsciiArt "ooooo\
-                                      \ooxoo\
-                                      \ooxoo\
-                                      \ooxoo\
-                                      \ooooo"
+        let expected = fromAsciiArt "ooooo\n\
+                                    \ooooo\n\
+                                    \oxxxo\n\
+                                    \ooooo\n\
+                                    \ooooo"
         let nextGameOfLife = gameOfLife >>= \g ->  nextGeneration g
         nextGameOfLife `shouldEqual` expected

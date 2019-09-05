@@ -1,17 +1,28 @@
 module Main where
 
-import Data.Array ((!!), concat, filter, foldM, length, replicate, updateAt, range)
+import Prelude
+
+import Data.Array (concat, filter, foldM, length, range, replicate, updateAt, (!!))
 import Data.Maybe (Maybe(..))
+import Data.String (split)
+import Data.String.CodeUnits (toCharArray)
+import Data.String.Pattern (Pattern(..))
+import Data.Traversable (sequence)
 import Data.Tuple (Tuple(..))
 import Effect (Effect)
 import Effect.Console (log)
-import Prelude
 
 data CellState = Alive | Dead
 derive instance eqCellState :: Eq CellState
 instance showCellState :: Show CellState where
   show Dead = "o"
   show Alive = "x"
+
+
+read :: Char -> Maybe CellState
+read 'x' = Just Alive
+read 'o' = Just Dead
+read _ = Nothing
 
 --newtype Position = Position (Tuple Int Int)
 
@@ -82,7 +93,10 @@ nextGeneration (GameOfLife size previousGrid) = do
   pure (GameOfLife size newGrid)
 
 fromAsciiArt :: String -> Maybe GameOfLife
-fromAsciiArt _ = Nothing
+fromAsciiArt input = do
+    let rows = split (Pattern "\n") input
+    grid <- sequence $ map (\row -> sequence $ map read (toCharArray row)) rows
+    pure (GameOfLife (length grid) grid)
 
 main :: Effect Unit
 main = do
