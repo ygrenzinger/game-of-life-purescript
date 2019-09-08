@@ -5,7 +5,7 @@ import Prelude
 import Data.Maybe (Maybe(..), fromMaybe)
 import Effect (Effect)
 import Effect.Aff (launchAff_)
-import Main (CellState(..), GameOfLife(..), countAliveNeighbours, createEmptyGrid, createFullGrid, fromAsciiArt, makeAliveAt, nextCellState, nextGeneration)
+import GameOfLife (CellState(..), GameOfLife(..), countAliveNeighbours, createEmptyGrid, createFullGrid, fromAsciiArt, makeAliveAt, nextCellState, nextGeneration)
 import Test.Spec (describe, it)
 import Test.Spec.Assertions (shouldEqual)
 import Test.Spec.Reporter.Console (consoleReporter)
