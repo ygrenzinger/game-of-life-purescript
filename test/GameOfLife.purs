@@ -3,6 +3,7 @@ module Test.Main where
 import Prelude
 
 import Data.Maybe (Maybe(..), fromMaybe)
+import Data.Tuple (Tuple(..))
 import Effect (Effect)
 import Effect.Aff (launchAff_)
 import GameOfLife (CellState(..), GameOfLife(..), countAliveNeighbours, createEmptyGrid, createFullGrid, fromAsciiArt, makeAliveAt, nextCellState, nextGeneration)
@@ -33,17 +34,17 @@ main = launchAff_ $ runSpec [consoleReporter] do
     describe "Computing alive neighbours" do
       it "no alive neighbours" do
         let emptyGrid = (createEmptyGrid 3)
-        let grid = fromMaybe emptyGrid (makeAliveAt 1 1 emptyGrid)
-        (countAliveNeighbours 1 1 grid) `shouldEqual` 0
+        let grid = fromMaybe emptyGrid (makeAliveAt emptyGrid (Tuple 1 1))
+        (countAliveNeighbours grid (Tuple 1 1)) `shouldEqual` 0
       it "all alive neighbours" do
         let grid = (createFullGrid 3)
-        (countAliveNeighbours 1 1 grid) `shouldEqual` 8
+        (countAliveNeighbours grid (Tuple 1 1)) `shouldEqual` 8
     describe "from Ascii Art" do
       it "should convert string to GameOfLife" do
         let gameOfLife = fromAsciiArt "xxx\n\
                                       \xxx\n\
                                       \xxx"
-        gameOfLife `shouldEqual` (Just (GameOfLife 3 (createFullGrid 3)))               
+        gameOfLife `shouldEqual` (Just (createFullGrid 3))             
     describe "Validating generation with patterns" do
       it "should handle Still lifes pattern with block example" do
         let gameOfLife = fromAsciiArt "oooo\n\

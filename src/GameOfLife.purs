@@ -2,6 +2,7 @@ module GameOfLife where
   
 import Prelude
 
+import Control.MonadZero (guard)
 import Data.Array (filter, foldM, length, replicate, updateAt, (!!), (..))
 import Data.Maybe (Maybe(..))
 import Data.String (split)
@@ -9,7 +10,6 @@ import Data.String.CodeUnits (toCharArray)
 import Data.String.Pattern (Pattern(..))
 import Data.Traversable (sequence)
 import Data.Tuple (Tuple(..))
-import Control.MonadZero (guard)
 
 data CellState = Alive | Dead
 derive instance eqCellState :: Eq CellState
@@ -32,55 +32,59 @@ derive instance eqGameOfLife :: Eq GameOfLife
 instance showGameOfLife :: Show GameOfLife 
   where show (GameOfLife _ grid) = "Game of life " <> (show grid)
 
+gridFrom :: GameOfLife -> Grid
+gridFrom (GameOfLife _ grid) = grid
+
 nextCellState :: Int -> CellState -> CellState
 nextCellState 3 _ = Alive
 nextCellState 2 Alive = Alive
 nextCellState _ _ = Dead
 
-cellAt :: Int -> Int -> Grid -> Maybe CellState
-cellAt rowIndex columnIndex grid = (grid !! rowIndex) >>= \row -> row !! columnIndex
+cellAt :: GameOfLife -> Position -> Maybe CellState
+cellAt (GameOfLife _ grid) (Tuple rowIndex columnIndex) = (grid !! rowIndex) >>= \row -> row !! columnIndex
 
-isAlive :: Grid -> Position -> Boolean
-isAlive grid (Tuple rowIndex columnIndex) = 
-    case (cellAt rowIndex columnIndex grid) of
+isAlive :: GameOfLife -> Position -> Boolean
+isAlive gameOfLife position = 
+    case (cellAt gameOfLife position) of
       Nothing -> false
       Just Dead -> false
       Just Alive -> true
 
-updateCellStateAt :: CellState -> Int -> Int -> Grid -> Maybe Grid
-updateCellStateAt cellState rowIndex columnIndex grid = do
+updateCellStateAt :: CellState -> GameOfLife -> Position -> Maybe GameOfLife
+updateCellStateAt cellState (GameOfLife size grid) (Tuple rowIndex columnIndex) = do
   row         <- grid !! rowIndex
   updatedRow  <- updateAt columnIndex cellState row
-  updateAt rowIndex updatedRow grid
+  newGrid <- updateAt rowIndex updatedRow grid
+  pure (GameOfLife size newGrid)
 
-makeAliveAt :: Int -> Int -> Grid -> Maybe Grid
+makeAliveAt :: GameOfLife -> Position -> Maybe GameOfLife
 makeAliveAt = updateCellStateAt Alive
 
-createGrid :: CellState -> Int -> Grid
-createGrid cellState size = replicate size (replicate size cellState) 
+createGrid :: CellState -> Int -> GameOfLife
+createGrid cellState size = GameOfLife size $ replicate size (replicate size cellState) 
 
-createEmptyGrid :: Int -> Grid
+createEmptyGrid :: Int -> GameOfLife
 createEmptyGrid = createGrid Dead
 
-createFullGrid :: Int -> Grid
+createFullGrid :: Int -> GameOfLife
 createFullGrid = createGrid Alive
 
-buildNeighboringPosition :: Int -> Int -> Array Position
-buildNeighboringPosition rowIndex columnIndex = do 
+buildNeighboringPosition :: Position -> Array Position
+buildNeighboringPosition (Tuple rowIndex columnIndex) = do 
   i <- (rowIndex - 1)..(rowIndex + 1)
   j <- (columnIndex - 1)..(columnIndex + 1)
   guard $ not (i == rowIndex && j == columnIndex)
   pure $ Tuple i j
 
-countAliveNeighbours :: Int -> Int -> Grid -> Int
-countAliveNeighbours rowIndex columnIndex grid = 
-  length $ filter (isAlive grid) (buildNeighboringPosition rowIndex columnIndex)
+countAliveNeighbours :: GameOfLife -> Position -> Int
+countAliveNeighbours gameOfLife position = 
+  length $ filter (isAlive gameOfLife) (buildNeighboringPosition position)
 
-nextGrid :: Grid -> Grid -> Tuple Int Int -> Maybe Grid
-nextGrid oldGrid grid (Tuple i j) = do
-  let count = countAliveNeighbours i j oldGrid
-  cellState <- cellAt i j oldGrid
-  updateCellStateAt (nextCellState count cellState) i j grid
+nextGenerationForPosition :: GameOfLife -> GameOfLife -> Position -> Maybe GameOfLife
+nextGenerationForPosition currentGen nextGen position = do
+  let count = countAliveNeighbours currentGen position
+  cellState <- cellAt currentGen position
+  updateCellStateAt (nextCellState count cellState) nextGen position
 
 buildGridPositions :: Int -> Array Position
 buildGridPositions gridSize = do
@@ -89,10 +93,9 @@ buildGridPositions gridSize = do
   pure $ Tuple i j
 
 nextGeneration :: GameOfLife -> Maybe GameOfLife
-nextGeneration (GameOfLife size previousGrid) = do
+nextGeneration gen@(GameOfLife size _) = do
   let emptyGrid = (createEmptyGrid size)
-  newGrid <- foldM (nextGrid previousGrid) emptyGrid (buildGridPositions size)
-  pure $ GameOfLife size newGrid
+  foldM (nextGenerationForPosition gen) emptyGrid (buildGridPositions size)
 
 fromAsciiArt :: String -> Maybe GameOfLife
 fromAsciiArt input = do
