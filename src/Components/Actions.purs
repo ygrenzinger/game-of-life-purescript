@@ -2,6 +2,7 @@ module Components.Actions where
 
 import Prelude
 
+import Data.Maybe (Maybe(..))
 import Effect.Console (log)
 import Effect.Timer (setInterval)
 import React.Basic (Component, JSX, StateUpdate(..), createComponent, make, runUpdate)
@@ -21,11 +22,12 @@ data Action
 actions :: Props -> JSX
 actions = make component { initialState, didMount, render }
   where
-    initialState = { counter: 0 }
+    initialState = { counter: 0, intervalId: Nothing }
 
     didMount = \self -> do
-      void $ setInterval 1000 do
+      intervalId <- setInterval 1000 do
         send self Increment
+      void $ self.setState \s -> s { intervalId = Just intervalId }
 
     update self = case _ of
       Increment ->

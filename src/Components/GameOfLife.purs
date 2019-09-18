@@ -5,11 +5,11 @@ import Prelude
 import Data.Array (mapWithIndex)
 import Data.Maybe (Maybe(..))
 import Data.Tuple (Tuple(..))
-import Effect (Effect(..))
+-- import Effect (pureE) << why pureE from Effect can't be imported
 import Effect.Console (log)
-import Effect.Timer (IntervalId, setInterval)
-import GameOfLife (CellState(..), Position, createEmptyGrid, gridFrom, makeAliveAt)
-import React.Basic (Component, JSX, Self(..), StateUpdate(..), createComponent, empty, make, runUpdate)
+import Effect.Timer (clearTimeout, setInterval)
+import GameOfLife (CellState(..), Position, createEmptyGrid, gridFrom, nextGeneration, switchState)
+import React.Basic (Component, JSX, StateUpdate(..), createComponent, empty, make, runUpdate)
 import React.Basic.DOM as R
 import React.Basic.DOM.Events (capture_)
 
@@ -21,36 +21,48 @@ type Props = {
 }
       
 data Action = NewGrid
-    | StartTicking
-    | StopTicking
+    | StartRunning
+    | StopRunning
     | Tick
-    | Activating Position
+    | SwitchState Position
 
 gameOfLife :: Props -> JSX
-gameOfLife = make component { initialState, render }
+gameOfLife = make component { initialState, didMount, render }
   where
-    initialState = { gameOfLife: Nothing, intervalId: Nothing  }
+    initialState = { gameOfLife: Nothing, intervalId: Nothing, running: false  }
 
-    update self = case _ of
+    didMount = \self -> do
+      intervalId <- setInterval 1000 do
+        send self Tick
+      void $ self.setState \s -> s { intervalId = Just intervalId }
+
+    willUnmount = \self -> 
+      case (self.state.intervalId) of
+        Nothing -> log $ "" -- how to create an empty Effect Unit
+        Just intervalId -> void $ clearTimeout intervalId       
+
+    update self action = case action of
         NewGrid -> 
           UpdateAndSideEffects
             (self.state { gameOfLife = Just $ createEmptyGrid self.props.size })
             \_ -> log $ "Create new game of life"
-        StartTicking -> 
-          SideEffects \s -> do 
-            void $ setInterval 1000 do
-              send s Tick 
-        StopTicking -> NoUpdate
-        Tick -> NoUpdate
-        Activating position -> 
+        StartRunning -> 
+          Update (self.state { running = true })
+        StopRunning -> 
+          Update (self.state { running = false })
+        Tick -> 
+          Update
+          (self.state { gameOfLife = self.state.gameOfLife >>= \g ->
+            if (self.state.running) then nextGeneration g else Just g })
+        SwitchState position -> 
           UpdateAndSideEffects
-            (self.state { gameOfLife = self.state.gameOfLife >>= \g -> makeAliveAt g position })
+            (self.state { gameOfLife = self.state.gameOfLife >>= \g -> switchState g position })
             \_ -> log $ "Making alive cell at : " <> show position
 
     send = runUpdate update
 
     displayCell self rowIndex columnIndex cellState = R.span
-        { onClick: capture_ $ send self (Activating (Tuple rowIndex columnIndex))
+        { onClick: capture_ $ send self (SwitchState (Tuple rowIndex columnIndex))
         , className: className
         }
       where 
@@ -76,12 +88,12 @@ gameOfLife = make component { initialState, render }
               , children: [ R.text "New grid" ]
               }
             , R.button
-              { onClick: capture_ $ send self StartTicking
-              , children: [ R.text "Start" ]
+              { onClick: capture_ $ send self StartRunning
+              , children: [ R.text "Run" ]
               }
             , R.button
-              { onClick: capture_ $ send self StopTicking
-              , children: [ R.text "Stop" ]
+              { onClick: capture_ $ send self StopRunning
+              , children: [ R.text "Pause" ]
               }
             , displayGameOfLife self 
         ]

@@ -35,6 +35,10 @@ instance showGameOfLife :: Show GameOfLife
 gridFrom :: GameOfLife -> Grid
 gridFrom (GameOfLife _ grid) = grid
 
+invert :: CellState -> CellState
+invert Alive = Dead
+invert Dead = Alive
+
 nextCellState :: Int -> CellState -> CellState
 nextCellState 3 _ = Alive
 nextCellState 2 Alive = Alive
@@ -59,6 +63,11 @@ updateCellStateAt cellState (GameOfLife size grid) (Tuple rowIndex columnIndex) 
 
 makeAliveAt :: GameOfLife -> Position -> Maybe GameOfLife
 makeAliveAt = updateCellStateAt Alive
+
+switchState :: GameOfLife -> Position -> Maybe GameOfLife
+switchState gameOfLife position = do
+  cellState <- cellAt gameOfLife position
+  updateCellStateAt (invert cellState) gameOfLife position
 
 createGrid :: CellState -> Int -> GameOfLife
 createGrid cellState size = GameOfLife size $ replicate size (replicate size cellState) 
